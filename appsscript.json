@@ -17,6 +17,8 @@
     "https://www.googleapis.com/auth/presentations",
     "https://www.googleapis.com/auth/classroom.rosters.readonly"
   ],
+  "urlFetchWhitelist": [],
+  "runtimeVersion": "V8",
   "addOns": {
     "common": {
       "name": "Seat Wizard",
@@ -25,6 +27,20 @@
         "primaryColor": "#4285F4",
         "secondaryColor": "#FFFFFF"
       },
+      "homepageTrigger": {
+        "runFunction": "onOpen",
+        "enabled": true
+      },
+      "universalActions": [
+        {
+          "label": "Open Seat Wizard",
+          "openLink": "https://docs.google.com/spreadsheets/"
+        }
+      ],
+      "openLinkUrlPrefixes": [
+        "https://docs.google.com/spreadsheets/",
+        "https://docs.google.com/presentation/"
+      ],
       "useLocaleFromApp": true
     },
     "sheets": {
@@ -33,5 +49,8 @@
         "enabled": true
       }
     }
+  },
+  "executionApi": {
+    "access": "ANYONE"
   }
 }
