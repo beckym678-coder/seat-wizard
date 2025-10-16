@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        background: #fafafa;
+      }
+      h3 {
+        margin-top: 0;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        background: #1a73e8;
+        color: white;
+        cursor: pointer;
+        width: 100%;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #1669c1;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      #warning {
+        margin-top: 10px;
+        padding: 8px;
+        background: #fff3cd;
+        border-left: 4px solid #ff9800;
+        display: none;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Set Preferential Seat Numbers</h3>
+    <p>Enter comma-separated seat numbers (e.g. <b>1, 2, 3, 4, 5</b>) for students with <b>Y</b> in “Preferential Seating”.</p>
+
+    <input id="seatInput" type="text" placeholder="e.g. 1, 2, 3, 4, 5" />
+    <button onclick="save()">Save Settings</button>
+    <div id="status"></div>
+    <div id="warning"></div>
+
+    <script>
+      // Load previously saved seats and perform validation
+      google.script.run.withSuccessHandler(function(selected) {
+        if (selected && selected.length) {
+          document.getElementById('seatInput').value = selected.join(', ');
+        }
+        validate(); // initial validation
+      }).getPreferentialSeats();
+
+      // Revalidate whenever the user types
+      document.getElementById('seatInput').addEventListener('input', validate);
+
+      function getSeatList() {
+        return document
+          .getElementById('seatInput')
+          .value.split(',')
+          .map(x => parseInt(x.trim(), 10))
+          .filter(x => !isNaN(x) && x > 0);
+      }
+
+      function validate() {
+        const seats = getSeatList();
+        google.script.run
+          .withSuccessHandler(showWarnings)
+          .checkPreferentialSeatCounts(seats);
+      }
+
+      function showWarnings(warnings) {
+        const warningDiv = document.getElementById('warning');
+        if (warnings && warnings.length) {
+          warningDiv.style.display = 'block';
+          warningDiv.innerHTML = `
+            ⚠️ <b>Warning:</b> Some classes have more "Y" students than available preferred seats.<br><br>
+            <ul>${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+          `;
+        } else {
+          warningDiv.style.display = 'none';
+        }
+      }
+
+      function save() {
+        const seats = getSeatList();
+        google.script.run
+          .withSuccessHandler(() => {
+            document.getElementById('status').innerHTML =
+              '✅ Settings saved successfully.';
+          })
+          .withFailureHandler(err => {
+            document.getElementById('status').innerHTML =
+              '❌ Error: ' + err.message;
+          })
+          .savePreferentialSeats(seats);
+      }
+    </script>
+  </body>
+</html>
