@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 16px;
+        background: #fafafa;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+      }
+      select, button {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+      }
+      button {
+        background-color: #1a73e8;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #1669c1;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      #spinner {
+        display: none;
+        text-align: center;
+        margin: 16px 0;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #1a73e8;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      #linkArea {
+        margin-top: 14px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Generate Seating Charts</h2>
+
+
+
+    <label for="classSelect">Select Class:</label>
+    <select id="classSelect"></select>
+
+    <button id="randomizeSingleBtn">🔀 Randomize Selected Class</button>
+    <button id="randomizeAllBtn">🔁 Randomize All Classes</button>
+
+    <hr>
+    <label for="layoutSelect">Select Layout:</label>
+    <select id="layoutSelect"></select>
+    <button id="generateSingleBtn">📄 Generate Chart for Class Selected</button>
+    <button id="generateAllBtn" style="margin-top:8px;">📚 Generate Charts for All Classes</button>
+
+    <div id="spinner"><div class="loader"></div></div>
+    <div id="status"></div>
+    <div id="linkArea"></div>
+
+    <script>
+      const layoutSelect = document.getElementById('layoutSelect');
+      const classSelect = document.getElementById('classSelect');
+      const randomizeSingleBtn = document.getElementById('randomizeSingleBtn');
+      const randomizeAllBtn = document.getElementById('randomizeAllBtn');
+      const generateSingleBtn = document.getElementById('generateSingleBtn');
+      const generateAllBtn = document.getElementById('generateAllBtn');
+      const statusDiv = document.getElementById('status');
+      const spinner = document.getElementById('spinner');
+      const linkArea = document.getElementById('linkArea');
+
+      function showStatus(msg, color = '#333') {
+        statusDiv.textContent = msg;
+        statusDiv.style.color = color;
+      }
+
+      // Load layout & class lists
+      function loadDropdowns() {
+        google.script.run
+          .withSuccessHandler(data => {
+            // Layouts
+            layoutSelect.innerHTML = data.layouts.length
+              ? data.layouts.map(n => `<option value="${n}">${n}</option>`).join('')
+              : '<option value="">(no layouts found)</option>';
+
+            // Classes
+            classSelect.innerHTML = data.classes.length
+              ? data.classes.map(n => `<option value="${n}">${n}</option>`).join('')
+              : '<option value="">(no classes found)</option>';
+          })
+          .withFailureHandler(err => {
+            showStatus('❌ Error loading dropdowns: ' + err.message, 'red');
+          })
+          .getDropdownData();
+      }
+
+      // Randomize one class
+      function randomizeSelectedClass() {
+        const className = classSelect.value;
+        if (!className) {
+          showStatus('⚠️ Please select a class first.', 'red');
+          return;
+        }
+        showStatus(`🔀 Randomizing seats for ${className}...`, '#0066cc');
+        spinner.style.display = 'block';
+        google.script.run
+          .withSuccessHandler(() => {
+            spinner.style.display = 'none';
+            showStatus(`✅ Seats randomized for ${className}.`, 'green');
+          })
+          .withFailureHandler(err => {
+            spinner.style.display = 'none';
+            showStatus('❌ Error: ' + err.message, 'red');
+          })
+          .randomizeSeatsForClass(className);
+      }
+
+      // Randomize all classes
+      function randomizeAllClasses() {
+        showStatus('🔁 Randomizing all class seats...', '#0066cc');
+        spinner.style.display = 'block';
+        google.script.run
+          .withSuccessHandler(() => {
+            spinner.style.display = 'none';
+            showStatus('✅ All class seats randomized!', 'green');
+          })
+          .withFailureHandler(err => {
+            spinner.style.display = 'none';
+            showStatus('❌ Error: ' + err.message, 'red');
+          })
+          .randomizeSeatsForAllClasses();
+      }
+
+      // Generate chart for one class
+      function generateSingleChart() {
+        const className = classSelect.value;
+        const layoutName = layoutSelect.value;
+        if (!className || !layoutName) {
+          showStatus('⚠️ Please select both a layout and a class.', 'red');
+          return;
+        }
+        linkArea.innerHTML = '';
+        generateSingleBtn.disabled = true;
+        spinner.style.display = 'block';
+        showStatus(`🛠️ Generating chart for ${className}...`, '#0066cc');
+
+        google.script.run
+          .withSuccessHandler(url => {
+            generateSingleBtn.disabled = false;
+            spinner.style.display = 'none';
+            if (!url) {
+              showStatus('❌ No file created.', 'red');
+              return;
+            }
+            showStatus(`✅ Chart for ${className} generated!`, 'green');
+            linkArea.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+          })
+          .withFailureHandler(err => {
+            generateSingleBtn.disabled = false;
+            spinner.style.display = 'none';
+            showStatus('❌ Error: ' + err.message, 'red');
+          })
+          .generateSeatingChart(className, layoutName);
+      }
+
+      // Generate all charts in one file
+      function generateAllCharts() {
+        const layoutName = layoutSelect.value;
+        if (!layoutName) {
+          showStatus('⚠️ Please select a layout.', 'red');
+          return;
+        }
+        linkArea.innerHTML = '';
+        generateAllBtn.disabled = true;
+        spinner.style.display = 'block';
+        showStatus('🛠️ Generating all charts...', '#0066cc');
+
+        google.script.run
+          .withSuccessHandler(url => {
+            generateAllBtn.disabled = false;
+            spinner.style.display = 'none';
+            if (!url) {
+              showStatus('❌ No file created.', 'red');
+              return;
+            }
+            showStatus('✅ All seating charts generated!', 'green');
+            linkArea.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+          })
+          .withFailureHandler(err => {
+            generateAllBtn.disabled = false;
+            spinner.style.display = 'none';
+            showStatus('❌ Error: ' + err.message, 'red');
+          })
+          .generateAllSeatingCharts(layoutName);
+      }
+
+      // Event bindings
+      randomizeSingleBtn.addEventListener('click', randomizeSelectedClass);
+      randomizeAllBtn.addEventListener('click', randomizeAllClasses);
+      generateSingleBtn.addEventListener('click', generateSingleChart);
+      generateAllBtn.addEventListener('click', generateAllCharts);
+
+      document.addEventListener('DOMContentLoaded', loadDropdowns);
+    </script>
+  </body>
+</html>
