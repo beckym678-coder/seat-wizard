@@ -4,227 +4,237 @@
     <base target="_top">
     <style>
       body {
-        font-family: 'Google Sans', Arial, sans-serif;
-        padding: 16px;
-        background: #fafafa;
-      }
-      h2 {
-        margin-top: 0;
-      }
-      label {
-        display: block;
-        margin-top: 10px;
+        font-family: Arial, sans-serif;
+        padding: 12px;
       }
       select, button {
         width: 100%;
-        padding: 8px;
-        margin-top: 4px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
+        margin-bottom: 10px;
         font-size: 14px;
+        padding: 4px;
       }
       button {
-        background-color: #1a73e8;
+        background: #1a73e8;
         color: white;
         border: none;
+        border-radius: 4px;
         cursor: pointer;
       }
-      button:hover {
-        background-color: #1669c1;
+      button:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+      }
+      .secondary {
+        background: #5f6368;
       }
       #status {
         margin-top: 12px;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 13px;
+        color: #333;
       }
-      #spinner {
-        display: none;
-        text-align: center;
+      .loading {
+        color: #999;
+        font-style: italic;
+      }
+      .success {
+        color: #0a8043;
+      }
+      .error {
+        color: #b31412;
+      }
+      hr {
         margin: 16px 0;
-      }
-      .loader {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #1a73e8;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
-        margin: auto;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      #linkArea {
-        margin-top: 14px;
-        font-size: 14px;
       }
     </style>
   </head>
   <body>
-    <h2>Generate Seating Charts</h2>
+    <h3>Seat Wizard Dashboard</h3>
 
+    <!-- CLASS AND TEMPLATE SELECTION -->
+    <label>Class:</label>
+    <select id="classSelect">
+      <option value="">Loading classes...</option>
+    </select>
 
+    <label>Slide Template:</label>
+    <select id="layoutSelect">
+      <option value="">Loading templates...</option>
+    </select>
 
-    <label for="classSelect">Select Class:</label>
-    <select id="classSelect"></select>
-
-    <button id="randomizeSingleBtn">🔀 Randomize Selected Class</button>
-    <button id="randomizeAllBtn">🔁 Randomize All Classes</button>
+    <!-- ACTION BUTTONS -->
+    <button id="generateBtn" onclick="generateChart()">Generate Chart</button>
+    <button class="secondary" id="generateAllBtn" onclick="generateAllCharts()">Generate Charts for All Classes</button>
 
     <hr>
-    <label for="layoutSelect">Select Layout:</label>
-    <select id="layoutSelect"></select>
-    <button id="generateSingleBtn">📄 Generate Chart for Class Selected</button>
-    <button id="generateAllBtn" style="margin-top:8px;">📚 Generate Charts for All Classes</button>
 
-    <div id="spinner"><div class="loader"></div></div>
-    <div id="status"></div>
-    <div id="linkArea"></div>
+    <!-- RANDOMIZER -->
+    <button class="secondary" id="randomizeBtn" onclick="randomizeClass()">Randomize Selected Class</button>
+    <button class="secondary" id="randomizeAllBtn" onclick="randomizeAll()">Randomize All Classes</button>
+
+    <div id="status" class="loading">Loading data...</div>
 
     <script>
-      const layoutSelect = document.getElementById('layoutSelect');
-      const classSelect = document.getElementById('classSelect');
-      const randomizeSingleBtn = document.getElementById('randomizeSingleBtn');
-      const randomizeAllBtn = document.getElementById('randomizeAllBtn');
-      const generateSingleBtn = document.getElementById('generateSingleBtn');
-      const generateAllBtn = document.getElementById('generateAllBtn');
-      const statusDiv = document.getElementById('status');
-      const spinner = document.getElementById('spinner');
-      const linkArea = document.getElementById('linkArea');
-
-      function showStatus(msg, color = '#333') {
-        statusDiv.textContent = msg;
-        statusDiv.style.color = color;
-      }
-
-      // Load layout & class lists
+      // Load dropdowns for class sheets and templates
       function loadDropdowns() {
         google.script.run
-          .withSuccessHandler(data => {
-            // Layouts
-            layoutSelect.innerHTML = data.layouts.length
-              ? data.layouts.map(n => `<option value="${n}">${n}</option>`).join('')
-              : '<option value="">(no layouts found)</option>';
+          .withSuccessHandler(({ classes, templates }) => {
+            const classSel = document.getElementById('classSelect');
+            const layoutSel = document.getElementById('layoutSelect');
+            const status = document.getElementById('status');
 
-            // Classes
-            classSelect.innerHTML = data.classes.length
-              ? data.classes.map(n => `<option value="${n}">${n}</option>`).join('')
-              : '<option value="">(no classes found)</option>';
+            classSel.innerHTML = classes.length
+              ? classes.map(c => `<option value="${c}">${c.replace(/^Class - /, '')}</option>`).join('')
+              : '<option value="">(No class sheets found)</option>';
+
+            layoutSel.innerHTML = templates.length
+              ? templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')
+              : '<option value="">(No slide templates found)</option>';
+
+            status.textContent = 'Ready.';
+            status.className = '';
           })
           .withFailureHandler(err => {
-            showStatus('❌ Error loading dropdowns: ' + err.message, 'red');
+            const status = document.getElementById('status');
+            status.textContent = `⚠️ Error loading data: ${err.message}`;
+            status.className = 'error';
           })
           .getDropdownData();
       }
 
-      // Randomize one class
-      function randomizeSelectedClass() {
+      // Generate chart for selected class
+      function generateChart() {
+        const classSelect = document.getElementById('classSelect');
+        const layoutSelect = document.getElementById('layoutSelect');
+        const status = document.getElementById('status');
+        const button = document.getElementById('generateBtn');
+
         const className = classSelect.value;
-        if (!className) {
-          showStatus('⚠️ Please select a class first.', 'red');
+        const templateId = layoutSelect.value;
+
+        if (!className || !templateId) {
+          status.textContent = '⚠️ Please select both a class and a slide template.';
+          status.className = 'error';
           return;
         }
-        showStatus(`🔀 Randomizing seats for ${className}...`, '#0066cc');
-        spinner.style.display = 'block';
+
+        button.disabled = true;
+        status.innerHTML = '⏳ Generating chart...';
+        status.className = 'loading';
+
         google.script.run
-          .withSuccessHandler(() => {
-            spinner.style.display = 'none';
-            showStatus(`✅ Seats randomized for ${className}.`, 'green');
+          .withSuccessHandler(url => {
+            status.innerHTML = `
+              ✅ <span class="success">Seating chart generated!</span><br>
+              <a href="${url}" target="_blank" style="color:#1a73e8;">View Seating Chart</a>
+            `;
+            status.className = '';
+            button.disabled = false;
           })
           .withFailureHandler(err => {
-            spinner.style.display = 'none';
-            showStatus('❌ Error: ' + err.message, 'red');
+            status.textContent = `❌ Error: ${err.message || err}`;
+            status.className = 'error';
+            button.disabled = false;
+          })
+          .generateSeatingChartFromSlideTemplate(className, templateId);
+      }
+
+      // Generate charts for all classes
+
+      function generateAllCharts() {
+       const layoutSelect = document.getElementById("layoutSelect");
+        const templateId = layoutSelect.value;
+        const status = document.getElementById("status");
+
+        if (!templateId) {
+          status.textContent = '⚠️ Please select a slide template first.';
+          status.className = 'error';
+          return;
+        }
+
+        status.innerHTML = "🪄 Generating charts for all classes...";
+        status.className = "loading";
+
+        google.script.run
+          .withSuccessHandler(result => {
+            if (result.success) {
+              status.innerHTML = `
+                 ✅ ${result.message}<br>
+                <a href="${result.url}" target="_blank" style="color:#1a73e8;">Open generated Slides</a>
+              `;
+              if (result.errors && result.errors.length > 0) {
+                status.innerHTML += `<br><br>⚠️ Errors:<br>${result.errors.join('<br>')}`;
+              }
+              status.className = "success";
+            } else {
+              status.textContent = "❌ Failed to generate charts.";
+              status.className = "error";
+            }
+          })
+          .withFailureHandler(err => {
+            status.textContent = `❌ Error: ${err.message}`;
+            status.className = "error";
+          })
+          .generateAllSeatingCharts(templateId);
+      }
+
+
+
+
+      // Randomize seats for selected class
+      function randomizeClass() {
+        const classSelect = document.getElementById('classSelect');
+        const className = classSelect.value;
+        const status = document.getElementById('status');
+
+        if (!className) {
+          status.textContent = '⚠️ Please select a class first.';
+          status.className = 'error';
+          return;
+        }
+
+        status.innerHTML = '🎲 Randomizing seats for selected class...';
+        status.className = 'loading';
+
+        google.script.run
+          .withSuccessHandler(() => {
+            status.innerHTML = `✅ <span class="success">Seats randomized for ${className}.</span>`;
+            status.className = '';
+          })
+          .withFailureHandler(err => {
+            status.textContent = `❌ Error: ${err.message || err}`;
+            status.className = 'error';
           })
           .randomizeSeatsForClass(className);
       }
 
-      // Randomize all classes
-      function randomizeAllClasses() {
-        showStatus('🔁 Randomizing all class seats...', '#0066cc');
-        spinner.style.display = 'block';
+      document.getElementById("classSelect").addEventListener("change", e => {
+        const className = e.target.value;
+        if (className) {
+          google.script.run.switchToClassSheet(className);
+        }
+      });
+
+      // Randomize seats for all classes
+      function randomizeAll() {
+        const status = document.getElementById('status');
+
+        status.innerHTML = '🎲 Randomizing all classes...';
+        status.className = 'loading';
+
         google.script.run
           .withSuccessHandler(() => {
-            spinner.style.display = 'none';
-            showStatus('✅ All class seats randomized!', 'green');
+            status.innerHTML = '✅ <span class="success">All class seat numbers randomized!</span>';
+            status.className = '';
           })
           .withFailureHandler(err => {
-            spinner.style.display = 'none';
-            showStatus('❌ Error: ' + err.message, 'red');
+            status.textContent = `❌ Error: ${err.message || err}`;
+            status.className = 'error';
           })
           .randomizeSeatsForAllClasses();
       }
 
-      // Generate chart for one class
-      function generateSingleChart() {
-        const className = classSelect.value;
-        const layoutName = layoutSelect.value;
-        if (!className || !layoutName) {
-          showStatus('⚠️ Please select both a layout and a class.', 'red');
-          return;
-        }
-        linkArea.innerHTML = '';
-        generateSingleBtn.disabled = true;
-        spinner.style.display = 'block';
-        showStatus(`🛠️ Generating chart for ${className}...`, '#0066cc');
-
-        google.script.run
-          .withSuccessHandler(url => {
-            generateSingleBtn.disabled = false;
-            spinner.style.display = 'none';
-            if (!url) {
-              showStatus('❌ No file created.', 'red');
-              return;
-            }
-            showStatus(`✅ Chart for ${className} generated!`, 'green');
-            linkArea.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
-          })
-          .withFailureHandler(err => {
-            generateSingleBtn.disabled = false;
-            spinner.style.display = 'none';
-            showStatus('❌ Error: ' + err.message, 'red');
-          })
-          .generateSeatingChart(className, layoutName);
-      }
-
-      // Generate all charts in one file
-      function generateAllCharts() {
-        const layoutName = layoutSelect.value;
-        if (!layoutName) {
-          showStatus('⚠️ Please select a layout.', 'red');
-          return;
-        }
-        linkArea.innerHTML = '';
-        generateAllBtn.disabled = true;
-        spinner.style.display = 'block';
-        showStatus('🛠️ Generating all charts...', '#0066cc');
-
-        google.script.run
-          .withSuccessHandler(url => {
-            generateAllBtn.disabled = false;
-            spinner.style.display = 'none';
-            if (!url) {
-              showStatus('❌ No file created.', 'red');
-              return;
-            }
-            showStatus('✅ All seating charts generated!', 'green');
-            linkArea.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
-          })
-          .withFailureHandler(err => {
-            generateAllBtn.disabled = false;
-            spinner.style.display = 'none';
-            showStatus('❌ Error: ' + err.message, 'red');
-          })
-          .generateAllSeatingCharts(layoutName);
-      }
-
-      // Event bindings
-      randomizeSingleBtn.addEventListener('click', randomizeSelectedClass);
-      randomizeAllBtn.addEventListener('click', randomizeAllClasses);
-      generateSingleBtn.addEventListener('click', generateSingleChart);
-      generateAllBtn.addEventListener('click', generateAllCharts);
-
-      document.addEventListener('DOMContentLoaded', loadDropdowns);
+      // Load data on open
+      window.onload = loadDropdowns;
     </script>
   </body>
 </html>
