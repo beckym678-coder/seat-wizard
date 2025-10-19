@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 14px;
+        line-height: 1.6;
+      }
+      h2 {
+        color: #1a73e8;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 4px;
+        margin-bottom: 12px;
+      }
+      .section {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .header {
+        background: #f1f3f4;
+        cursor: pointer;
+        padding: 10px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .header:hover {
+        background: #e8f0fe;
+      }
+      .header span.icon {
+        font-size: 14px;
+        color: #1a73e8;
+        transition: transform 0.2s ease;
+      }
+      .header.open span.icon {
+        transform: rotate(90deg);
+      }
+      .content {
+        display: none;
+        padding: 10px 14px;
+        background: white;
+      }
+      ul {
+        margin: 3px;
+        padding: 0px;
+      }
+      code {
+        background: #f1f3f4;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      .tip {
+        background: #e8f0fe;
+        padding: 8px;
+        border-left: 4px solid #1a73e8;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+      .footer {
+        margin-top: 20px;
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Seat Wizard User Manual</h2>
+    <p>Welcome to <strong>Seat Wizard</strong> — your classroom seating chart automation tool for Google Workspace. Click any section below to expand.</p>
+
+    <div class="section">
+      <div class="header">🎓 1. Import Google Classroom Rosters <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>Go to <strong>Seat Wizard → Import/Sync Google Classroom Rosters</strong>.</li>
+          <li>Select rosters to import from Google Classroom.</li>
+          <li>Click <strong>Import</strong> — each course becomes a “Class - [Name]” worksheet here.</li>
+          <li>Seat numbers are auto-assigned initially but can be randomized later.</li>
+          <li>When your rosters change, importing again syncs data without overwriting existing preferences.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="header">🪄 2. Generate Seating Charts <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>Go to <strong>Seat Wizard → Generate Seating Charts</strong>.</li>
+          <li>Select a <strong>Class</strong> and a <strong>Slide Template</strong>.</li>
+          <li>Click <strong>Generate Chart</strong> for one class or <strong>Generate Charts for All Classes</strong> to create a full presentation.</li>
+          <li>The result is a Google Slides file with one or more classroom charts.</li>
+        </ul>
+        <div class="tip">
+          💡 Tip: Templates must live in your Drive folder named <strong>“Seat Wizard”</strong> and begin with “Layout -”.
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="header">🎲 3. Randomize Seats <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>Click <strong>Randomize Selected Class</strong> to shuffle seats for one class.</li>
+          <li>Or click <strong>Randomize All Classes</strong> to reshuffle every roster.</li>
+          <li>Seat Wizard maintains “Keep Away” and “Preferential Seat” rules during randomization.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="header">⭐ 4. Preferential & Keep-Away Settings <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>In each class sheet, column D (“Preferential Seating”) accepts <strong>Y</strong> for students who need specific seats.</li>
+          <li>Columns E and F (“Keep Away 1” and “Keep Away 2”) let you avoid seating conflicts.</li>
+          <li>Set which seat numbers are “preferential” via <strong>Seat Wizard → Set Preferential Seats</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="header">📋 5. Layout Templates <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>Layouts determine classroom structure and must be in the <strong>Seat Wizard</strong> folder in your Drive.</li>
+          <li>Slide templates (Google Slides) can show Student or Teacher perspectives — Seat Wizard automatically fills seat numbers with names.</li>
+          <li>You can create desk layouts directly in the slide or in the slide’s theme editor.</li>
+          <li>Labeled items are left untouched; seat numbers are replaced with student names.</li>
+          <li>Each desk must have a text box containing its seat number.</li>
+          <li>Seat text boxes retain your formatting.</li>
+          <li>“Keep away” rules depend on numeric adjacency — if seats are far apart numerically, separation may not apply.</li>
+          <li>Higher-numbered desks are filled last and left empty if there are too few students.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="header">🧰 6. Troubleshooting <span class="icon">▶</span></div>
+      <div class="content">
+        <ul>
+          <li>If a chart is blank, ensure seat numbers match the numbers in your slide template.</li>
+          <li>Templates must be editable by you and located in the “Seat Wizard” folder.</li>
+          <li>Enable the Classroom API if syncing rosters gives an error.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      <b>Seat Wizard</b> • Classroom Seating Made Simple<br>
+      © 2025 Becky Moyer
+    </div>
+
+    <script>
+      document.querySelectorAll(".header").forEach(header => {
+        header.addEventListener("click", () => {
+          const content = header.nextElementSibling;
+          const icon = header.querySelector(".icon");
+          const open = content.style.display === "block";
+          document.querySelectorAll(".content").forEach(c => c.style.display = "none");
+          document.querySelectorAll(".header span.icon").forEach(i => i.style.transform = "rotate(0deg)");
+          if (!open) {
+            content.style.display = "block";
+            icon.style.transform = "rotate(90deg)";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
