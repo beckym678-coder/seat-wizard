@@ -4,56 +4,66 @@
     <base target="_top">
     <style>
       body {
-        font-family: Arial, sans-serif;
+        font-family: 'Google Sans', Arial, sans-serif;
         padding: 16px;
+        color: #333;
       }
       h2 {
         margin-top: 0;
+        font-size: 18px;
       }
-      .course-list {
+      #status {
+        margin-top: 8px;
+        color: #555;
+        font-size: 13px;
+      }
+      #courseList {
+        margin-top: 12px;
         max-height: 300px;
         overflow-y: auto;
         border: 1px solid #ccc;
         padding: 8px;
-        margin-bottom: 16px;
+        border-radius: 6px;
+        background: #fafafa;
       }
       label {
         display: block;
-        margin: 4px 0;
+        margin-bottom: 6px;
       }
       button {
+        margin-top: 16px;
         background-color: #1a73e8;
         color: white;
         border: none;
         border-radius: 4px;
-        padding: 8px 14px;
+        padding: 8px 16px;
         cursor: pointer;
         font-size: 13px;
       }
-      button:disabled {
-        background-color: #cccccc;
-        cursor: not-allowed;
+      button:hover {
+        background-color: #1669c1;
       }
-      #status {
-        margin-top: 12px;
-        font-size: 13px;
-        color: #555;
+      .loading::after {
+        content: ' ⏳';
+      }
+      .error {
+        color: #d93025;
       }
     </style>
   </head>
-
   <body>
-    <h2>Import from Google Classroom</h2>
-    <p>Select which active courses to import:</p>
+    <h2>Import Google Classroom Rosters</h2>
+    <p>Select which active courses to import into Seat Wizard.</p>
 
-    <div id="courseList" class="course-list">Loading courses...</div>
+    <div id="status" class="loading">Loading your Google Classroom courses...</div>
+    <div id="courseList"></div>
 
-    <button id="importBtn" onclick="importSelected()">Import Selected Classes</button>
-    <div id="status"></div>
+    <button id="importBtn" disabled onclick="importSelected()">Import Selected Classes</button>
 
     <script>
       document.addEventListener('DOMContentLoaded', loadCourses);
 
+      // --- Load courses from Apps Script backend ---
       function loadCourses() {
         google.script.run
           .withSuccessHandler(displayCourses)
@@ -61,11 +71,20 @@
           .getClassroomCourses();
       }
 
+      // --- Display retrieved courses ---
       function displayCourses(courses) {
+        const status = document.getElementById('status');
         const container = document.getElementById('courseList');
+        const importBtn = document.getElementById('importBtn');
+
         container.innerHTML = '';
+        importBtn.disabled = false;
+        status.textContent = 'Select one or more classes to import:';
+        status.className = '';
+
         if (!courses || courses.length === 0) {
-          container.textContent = 'No active courses found.';
+          status.textContent = '⚠️ No active Google Classroom courses found.';
+          importBtn.disabled = true;
           return;
         }
 
@@ -80,35 +99,35 @@
         });
       }
 
-      function showError(err) {
-        document.getElementById('courseList').textContent =
-          '❌ Error loading courses: ' + err.message;
-      }
-
+      // --- Import selected courses ---
       function importSelected() {
-        const checkboxes = Array.from(document.querySelectorAll('#courseList input[type=checkbox]:checked'));
-        if (checkboxes.length === 0) {
-          alert('Please select at least one class.');
+        const checkboxes = document.querySelectorAll('#courseList input[type="checkbox"]:checked');
+        const selected = Array.from(checkboxes).map(cb => cb.value);
+        const status = document.getElementById('status');
+
+        if (selected.length === 0) {
+          status.textContent = '⚠️ Please select at least one course.';
           return;
         }
 
-        const selectedIds = checkboxes.map(cb => cb.value);
-        const importBtn = document.getElementById('importBtn');
-        const status = document.getElementById('status');
-
-        importBtn.disabled = true;
-        status.textContent = '⏳ Importing selected classes...';
+        status.textContent = '⏳ Importing selected courses...';
+        status.className = 'loading';
 
         google.script.run
-          .withSuccessHandler(() => {
-            status.textContent = '✅ Rosters imported successfully!';
-            importBtn.disabled = false;
+          .withSuccessHandler(result => {
+            status.textContent = `✅ Imported ${result.count} class(es) successfully.`;
+            status.className = '';
           })
-          .withFailureHandler(err => {
-            status.textContent = '❌ Error importing: ' + err.message;
-            importBtn.disabled = false;
-          })
-          .importSelectedCourses(selectedIds);
+          .withFailureHandler(showError)
+          .importSelectedCourses(selected);
+      }
+
+      // --- Handle errors gracefully ---
+      function showError(err) {
+        const status = document.getElementById('status');
+        status.className = 'error';
+        status.textContent = `❌ Error: ${err && err.message ? err.message : err}`;
+        console.error(err);
       }
     </script>
   </body>
