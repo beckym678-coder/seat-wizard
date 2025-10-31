@@ -4,108 +4,111 @@
     <base target="_top">
     <style>
       body {
-        font-family: Arial, sans-serif;
+        font-family: 'Google Sans', Arial, sans-serif;
         padding: 16px;
-        background: #fafafa;
       }
-      h3 {
+      h2 {
+        color: #1a73e8;
         margin-top: 0;
       }
-      input[type="text"] {
+      textarea {
         width: 100%;
+        height: 80px;
+        font-family: monospace;
         padding: 8px;
-        font-size: 14px;
-        border-radius: 6px;
+        border-radius: 4px;
         border: 1px solid #ccc;
-        box-sizing: border-box;
+        resize: vertical;
       }
       button {
-        margin-top: 12px;
-        padding: 8px 12px;
+        background-color: #1a73e8;
+        color: white;
         border: none;
         border-radius: 4px;
-        background: #1a73e8;
-        color: white;
+        padding: 8px 16px;
+        margin-top: 10px;
         cursor: pointer;
-        width: 100%;
-        font-size: 14px;
+        font-size: 13px;
       }
       button:hover {
-        background: #1669c1;
+        background-color: #1669c1;
       }
       #status {
-        margin-top: 12px;
+        margin-top: 10px;
         font-size: 13px;
       }
-      #warning {
-        margin-top: 10px;
-        padding: 8px;
-        background: #fff3cd;
-        border-left: 4px solid #ff9800;
-        display: none;
-        font-size: 13px;
+      .error {
+        color: #d93025;
+      }
+      .success {
+        color: #188038;
       }
     </style>
   </head>
   <body>
-    <h3>Set Preferential Seat Numbers</h3>
-    <p>Enter comma-separated seat numbers (e.g. <b>1, 2, 3, 4, 5</b>) for students with <b>Y</b> in “Preferential Seating”.</p>
+    <h2>Set Preferential Seats</h2>
+    <p>Enter a comma-separated list of seat numbers that should be considered <b>preferential</b> (e.g. <code>1,2,3,4</code>).</p>
 
-    <input id="seatInput" type="text" placeholder="e.g. 1, 2, 3, 4, 5" />
-    <button onclick="save()">Save Settings</button>
+    <textarea id="seatInput" placeholder="1,2,3,4"></textarea><br>
+    <button onclick="saveSeats()">💾 Save Settings</button>
+
     <div id="status"></div>
-    <div id="warning"></div>
 
     <script>
-      // Load previously saved seats and perform validation
-      google.script.run.withSuccessHandler(function(selected) {
-        if (selected && selected.length) {
-          document.getElementById('seatInput').value = selected.join(', ');
-        }
-        validate(); // initial validation
-      }).getPreferentialSeats();
+      document.addEventListener('DOMContentLoaded', loadSeats);
 
-      // Revalidate whenever the user types
-      document.getElementById('seatInput').addEventListener('input', validate);
+      // Load currently saved preferential seats
+      function loadSeats() {
+        const status = document.getElementById('status');
+        status.textContent = 'Loading saved seats...';
 
-      function getSeatList() {
-        return document
-          .getElementById('seatInput')
-          .value.split(',')
-          .map(x => parseInt(x.trim(), 10))
-          .filter(x => !isNaN(x) && x > 0);
-      }
-
-      function validate() {
-        const seats = getSeatList();
         google.script.run
-          .withSuccessHandler(showWarnings)
-          .checkPreferentialSeatCounts(seats);
-      }
-
-      function showWarnings(warnings) {
-        const warningDiv = document.getElementById('warning');
-        if (warnings && warnings.length) {
-          warningDiv.style.display = 'block';
-          warningDiv.innerHTML = `
-            ⚠️ <b>Warning:</b> Some classes have more "Y" students than available preferred seats.<br><br>
-            <ul>${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
-          `;
-        } else {
-          warningDiv.style.display = 'none';
-        }
-      }
-
-      function save() {
-        const seats = getSeatList();
-        google.script.run
-          .withSuccessHandler(() => {
-            document.getElementById('status').innerHTML =
-              '✅ Settings saved successfully.';
+          .withSuccessHandler(seats => {
+            document.getElementById('seatInput').value = seats && seats.length
+              ? seats.join(', ')
+              : '';
+            status.textContent = 'Loaded successfully.';
+            status.className = 'success';
           })
           .withFailureHandler(err => {
-            document.getElementById('status').innerHTML =
-              '❌ Error: ' + err.message;
+            status.textContent = '❌ Error loading seats: ' + (err.message || err);
+            status.className = 'error';
+          })
+          .getPreferentialSeats();
+      }
+
+      // Save the user’s input
+      function saveSeats() {
+        const status = document.getElementById('status');
+        let input = document.getElementById('seatInput').value.trim();
+
+        if (!input) {
+          status.textContent = '⚠️ Please enter at least one seat number.';
+          status.className = 'error';
+          return;
+        }
+
+        const seats = input
+          .split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => !isNaN(n));
+
+        if (seats.length === 0) {
+          status.textContent = '⚠️ Invalid format — please enter numbers separated by commas.';
+          status.className = 'error';
+          return;
+        }
+
+        status.textContent = 'Saving...';
+
+        google.script.run
+          .withSuccessHandler(() => {
+            status.textContent = '✅ Preferential seats saved!';
+            status.className = 'success';
+          })
+          .withFailureHandler(err => {
+            status.textContent = '❌ Error saving seats: ' + (err.message || err);
+            status.className = 'error';
           })
           .savePreferentialSeats(seats);
       }
