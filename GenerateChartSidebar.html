@@ -4,8 +4,10 @@
     <base target="_top">
     <style>
       body {
-        font-family: Arial, sans-serif;
-        padding: 12px;
+        background-color: #f8f9fa; 
+        color: #202124;
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 10px;
       }
       select, button {
         width: 100%;
@@ -42,15 +44,55 @@
       .error {
         color: #b31412;
       }
+      #preview {
+        text-align: center;
+        margin: 10px 0;
+      }
+      #preview img {
+        max-width: 100%;
+        max-height: 150px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
       hr {
         margin: 16px 0;
+      }
+      .tip {
+        background: #e8f0fe;
+        padding: 10px;
+        border-left: 4px solid #1a73e8;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-size: 13px;
+      }
+      .tip button {
+        margin-left: 10px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
       }
     </style>
   </head>
   <body>
-    <h3>Seat Wizard Dashboard</h3>
+    <div style="text-align: center; margin-bottom: 12px;">
+      <img 
+        src="https://raw.githubusercontent.com/beckym678-coder/seat-wizard/main/Seat_Wizard_App_Icons/A_flat-style_digital_illustration_icon_features_a_.png"
+        alt="Seat Wizard Icon"
+        style="height: 40px; vertical-align: middle; margin-right: 8px;"
+      />
+      <span style="font-size: 22px; font-weight: bold;">Seat Wizard</span>
+    </div>
 
-    <!-- CLASS AND TEMPLATE SELECTION -->
+    <!-- --- First-time tip --->
+    <div class="tip" id="firstTimeTip">
+      Tips: Import your rosters first. Set display names & seat rules, then generate charts. 
+      <button onclick="document.getElementById('firstTimeTip').style.display='none'">Got it</button>
+    </div>
+
     <label>Class:</label>
     <select id="classSelect">
       <option value="">Loading classes...</option>
@@ -61,26 +103,26 @@
       <option value="">Loading templates...</option>
     </select>
 
-    <!-- ACTION BUTTONS -->
+    <div id="preview">⏳ Loading preview...</div>
+
     <button id="generateBtn" onclick="generateChart()">Generate Chart</button>
     <button class="secondary" id="generateAllBtn" onclick="generateAllCharts()">Generate Charts for All Classes</button>
 
     <hr>
 
-    <!-- RANDOMIZER -->
     <button class="secondary" id="randomizeBtn" onclick="randomizeClass()">Randomize Selected Class</button>
     <button class="secondary" id="randomizeAllBtn" onclick="randomizeAll()">Randomize All Classes</button>
 
     <div id="status" class="loading">Loading data...</div>
 
     <script>
-      // Load dropdowns for class sheets and templates
       function loadDropdowns() {
         google.script.run
           .withSuccessHandler(({ classes, templates }) => {
             const classSel = document.getElementById('classSelect');
             const layoutSel = document.getElementById('layoutSelect');
             const status = document.getElementById('status');
+            const previewDiv = document.getElementById('preview');
 
             classSel.innerHTML = classes.length
               ? classes.map(c => `<option value="${c}">${c.replace(/^Class - /, '')}</option>`).join('')
@@ -92,6 +134,38 @@
 
             status.textContent = 'Ready.';
             status.className = '';
+
+            if (templates.length > 0) {
+              const firstTemplateId = templates[0].id;
+              previewDiv.innerHTML = '⏳ Loading preview...';
+              google.script.run
+                .withSuccessHandler(url => {
+                  previewDiv.innerHTML = `<img src="${url}" alt="Layout Preview">`;
+                })
+                .withFailureHandler(err => {
+                  previewDiv.innerHTML = '⚠️ Preview not available';
+                  console.error(err);
+                })
+                .getLayoutPreviewUrl(firstTemplateId);
+            }
+
+            layoutSel.addEventListener('change', () => {
+              const templateId = layoutSel.value;
+              if (!templateId) {
+                previewDiv.innerHTML = '';
+                return;
+              }
+              previewDiv.innerHTML = '⏳ Loading preview...';
+              google.script.run
+                .withSuccessHandler(url => {
+                  previewDiv.innerHTML = `<img src="${url}" alt="Layout Preview">`;
+                })
+                .withFailureHandler(err => {
+                  previewDiv.innerHTML = `⚠️ Preview not available`;
+                  console.error(err);
+                })
+                .getLayoutPreviewUrl(templateId);
+            });
           })
           .withFailureHandler(err => {
             const status = document.getElementById('status');
@@ -101,7 +175,6 @@
           .getDropdownData();
       }
 
-      // Generate chart for selected class
       function generateChart() {
         const classSelect = document.getElementById('classSelect');
         const layoutSelect = document.getElementById('layoutSelect');
@@ -138,10 +211,8 @@
           .generateSeatingChartFromSlideTemplate(className, templateId);
       }
 
-      // Generate charts for all classes
-
       function generateAllCharts() {
-       const layoutSelect = document.getElementById("layoutSelect");
+        const layoutSelect = document.getElementById("layoutSelect");
         const templateId = layoutSelect.value;
         const status = document.getElementById("status");
 
@@ -177,10 +248,6 @@
           .generateAllSeatingCharts(templateId);
       }
 
-
-
-
-      // Randomize seats for selected class
       function randomizeClass() {
         const classSelect = document.getElementById('classSelect');
         const className = classSelect.value;
@@ -207,6 +274,16 @@
           .randomizeSeatsForClass(className);
       }
 
+        const tip = document.getElementById('firstTimeTip');
+        if (localStorage.getItem('tipDismissed') === 'true') {
+          tip.style.display = 'none';
+        }
+
+        tip.querySelector('button').addEventListener('click', () => {
+          tip.style.display = 'none';
+          localStorage.setItem('tipDismissed', 'true');
+        });
+
       document.getElementById("classSelect").addEventListener("change", e => {
         const className = e.target.value;
         if (className) {
@@ -214,7 +291,6 @@
         }
       });
 
-      // Randomize seats for all classes
       function randomizeAll() {
         const status = document.getElementById('status');
 
@@ -233,7 +309,6 @@
           .randomizeSeatsForAllClasses();
       }
 
-      // Load data on open
       window.onload = loadDropdowns;
     </script>
   </body>
