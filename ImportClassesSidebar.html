@@ -4,9 +4,10 @@
     <base target="_top">
     <style>
       body {
+        background-color: #f8f9fa;
+        color: #202124;
         font-family: 'Google Sans', Arial, sans-serif;
-        padding: 16px;
-        color: #333;
+        padding: 10px;
       }
       h2 {
         margin-top: 0;
@@ -49,11 +50,57 @@
       .error {
         color: #d93025;
       }
+      
+      .tip {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #e8f0fe;
+        padding: 10px 12px;
+        border-left: 4px solid #1a73e8;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+
+      .tip span {
+        flex: 1;
+        margin-right: 8px;
+      }
+
+      .tip button {
+        background: #1a73e8;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .tip button:hover {
+        background: #1669c1;
+      }
     </style>
   </head>
   <body>
-    <h2>Import Google Classroom Rosters</h2>
-    <p>Select which active courses to import into Seat Wizard.</p>
+    <div style="text-align: center; margin-bottom: 12px;">
+      <img 
+        src="https://raw.githubusercontent.com/beckym678-coder/seat-wizard/main/Seat_Wizard_App_Icons/A_flat-style_digital_illustration_icon_features_a_.png"
+        alt="Seat Wizard Icon"
+        style="height: 40px; vertical-align: middle; margin-right: 8px;"
+      />
+      <span style="font-size: 22px; font-weight: bold;">Import Rosters</span>
+    </div>
+
+    <!-- --- First-time tip --->
+    <div class="tip" id="firstTimeTip">
+      <span>💡 Tip: You only need to do this once. If you import again, rosters just update.</span>
+      <button id="dismissTipBtn">Got it</button>
+    </div>
+
+    <p>Select which active Google Classroom courses to import into Seat Wizard.</p>
 
     <div id="status" class="loading">Loading your Google Classroom courses...</div>
     <div id="courseList"></div>
@@ -61,9 +108,20 @@
     <button id="importBtn" disabled onclick="importSelected()">Import Selected Classes</button>
 
     <script>
-      document.addEventListener('DOMContentLoaded', loadCourses);
+      document.addEventListener('DOMContentLoaded', () => {
+        // Show tip only if not dismissed
+        const tip = document.getElementById('firstTimeTip');
+        if (localStorage.getItem('importTipDismissed') === 'true') {
+          tip.style.display = 'none';
+        }
+        document.getElementById('dismissTipBtn').addEventListener('click', () => {
+          tip.style.display = 'none';
+          localStorage.setItem('importTipDismissed', 'true');
+        });
 
-      // --- Load courses from Apps Script backend ---
+        loadCourses();
+      });
+
       function loadCourses() {
         google.script.run
           .withSuccessHandler(displayCourses)
@@ -71,7 +129,6 @@
           .getClassroomCourses();
       }
 
-      // --- Display retrieved courses ---
       function displayCourses(courses) {
         const status = document.getElementById('status');
         const container = document.getElementById('courseList');
@@ -79,7 +136,7 @@
 
         container.innerHTML = '';
         importBtn.disabled = false;
-        status.textContent = 'Select one or more classes to import:';
+        status.textContent = 'Select one or more classes to import/sync:';
         status.className = '';
 
         if (!courses || courses.length === 0) {
@@ -99,7 +156,6 @@
         });
       }
 
-      // --- Import selected courses ---
       function importSelected() {
         const checkboxes = document.querySelectorAll('#courseList input[type="checkbox"]:checked');
         const selected = Array.from(checkboxes).map(cb => cb.value);
@@ -117,12 +173,12 @@
           .withSuccessHandler(result => {
             status.textContent = `✅ Imported ${result.count} class(es) successfully.`;
             status.className = '';
+            google.script.run.showGenerateChartSidebar();
           })
           .withFailureHandler(showError)
           .importSelectedCourses(selected);
       }
 
-      // --- Handle errors gracefully ---
       function showError(err) {
         const status = document.getElementById('status');
         status.className = 'error';
